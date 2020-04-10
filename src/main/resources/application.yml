@@ -1,0 +1,9 @@
+server:
+  port: 48861
+  servlet:
+    session:
+      timeout: 720m
+
+spring:
+  thymeleaf:
+    cache: true

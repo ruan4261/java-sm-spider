@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>一只啥也不会的蜘蛛</title>
+    <style>
+        section {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        .title {
+            text-align: center;
+            font-weight: bold;
+            font-family: 楷体, serif;
+        }
+
+        .title a {
+            color: #eb8441;
+            text-decoration: none;
+        }
+
+        .title a:hover {
+            color: #eb651c;
+            text-decoration: none;
+        }
+
+        label {
+            display: inline-block;
+            width: 45%;
+            padding: 10px 15px;
+            margin-top: 10px;
+            background: #ddd;
+            border-radius: 25px;
+        }
+
+        .console {
+            height: 350px;
+            width: 100%;
+            overflow-x: hidden;
+            border: 1px solid #333;
+            box-shadow: 0 0 5px #666 inset;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 0 10px;
+        }
+
+        input {
+            width: inherit;
+            padding: 3px;
+            border: none;
+            font-size: 16px;
+            outline-color: pink;
+        }
+
+        .button-group {
+            text-align: center;
+            padding-top: 20px;
+        }
+
+        .button-group > button {
+            font-size: 16px;
+            font-weight: bold;
+            padding: 5px 8px;
+            border-radius: 10px;
+        }
+
+        .state.on {
+            color: limegreen;
+        }
+
+        .state.off {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<section>
+    <h1 class="title">Localhost小蜘蛛ver0.0.1</h1>
+    <h3 class="title">By <a href="https://ruan4261.com" target="_blank">ruan4261.com</a> | GitHub
+        <a href="https://github.com/ruan4261" target="_blank">ruan4261</a></h3>
+    <p><strong>使用说明：</strong>本工具只支持向服务所在机器下载资源，请让服务器及客户端为同一台机器；或者由客户端发送指令，将资源下载至服务器上。本工具临时编写，目前只支持爬取资源，不支持数据智能检索。如您请求的是一个html页面，那么本工具将会将html文档整个下载至服务器。所以，本工具适合爬取符合数据增长规律的二进制文件，如视频文件或图片文件。本工具源将保存在GitHub/ruan4261，如您喜欢，欢迎follow一下我的账号，您也可以star或fork本工具仓库java-sm-spider。
+    </p>
+    <div>
+        <label for="urlPrefix">资源前缀:
+            <input id="urlPrefix" type="text" placeholder="可变字段前的全部字符">
+        </label>
+        <label for="urlSuffix">资源后缀:
+            <input id="urlSuffix" type="text" placeholder="如无需后缀，可不填写">
+        </label>
+        <br>
+        <label for="spiderStep">步大小:
+            <input id="spiderStep" type="number" value="1" min="1">
+        </label>
+        <label for="putZero">补零策略是否开启:
+            <select id="putZero">
+                <option value="true">补零</option>
+                <option value="false" selected>不补零</option>
+            </select>
+        </label>
+        <br>
+        <label for="keywordLength">(补零策略)最小长度:
+            <input id="keywordLength" type="number" placeholder="可变字段长度">
+        </label>
+        <label for="sourceHeadNum">资源起点:
+            <input id="sourceHeadNum" type="number" placeholder="起点下标">
+        </label>
+        <br>
+        <label for="sourceLastNum">资源结束点:
+            <input id="sourceLastNum" type="number" placeholder="循环结束点">
+        </label>
+        <label for="exceptionTactics">资源异常策略:
+            <input id="exceptionTactics" type="number" placeholder="-1:停止下载队列 0:跳过 N>0:重复尝试至多N次">
+        </label>
+        <br>
+        <label for="savePath">服务器保存点:
+            <input id="savePath" type="text" placeholder="如C:/Window/System32/">
+        </label>
+        <label for="saveNamePrefix">保存文件名前缀:
+            <input id="saveNamePrefix" type="text" placeholder="如temp-->temp[xxx].xx">
+        </label>
+        <br>
+        <label for="saveNameSuffix">保存文件名后缀:
+            <input id="saveNameSuffix" type="text" placeholder="如.mp4-->xxx.mp4">
+        </label>
+        <label for="fileLogPath">(Log)文件名记录文件保存点:
+            <input id="fileLogPath" type="text" placeholder="如C:/log.log 文件编码为utf8">
+        </label>
+    </div>
+    <div class="button-group">
+        <button type="button" onclick="wsConn(1)">进入同步</button>
+        <button type="button" onclick="spider()">开始爬取</button>
+        <button type="button" onclick="shutdown()">强制打断队列</button>
+        <button type="button" onclick="wsConn(0)">退出同步</button>
+        <button type="button" onclick="clearConsole()">清理控制台</button>
+    </div>
+    <h4 class="title">反馈控制台&nbsp;<span class="state off">●</span>&nbsp;<span class="state off">未同步</span></h4>
+    <div class="console"></div>
+</section>
+</body>
+<script th:src="@{/jquery.js}"></script>
+<script>
+    var ws;
+    var $console = $('.console');
+
+    function initWs(url) {
+        var ws = new WebSocket(url);
+        ws.onopen = function () {
+            //连接开启
+            $('.state').removeClass('off').addClass('on');
+        }
+        ws.onmessage = function (data) {
+            //收到服务器信息，向窗口打印
+            var mes = '<p>[INFO]' + data.data + '</p>';
+            $console.append(mes);
+            $('.console').scrollTop(document.querySelector(".console").scrollHeight);
+        }
+        ws.onclose = function () {
+            //连接关闭
+            $console.append('<p>[INFO]您已与小蜘蛛失去同步。</p>');
+            $('.console').scrollTop(document.querySelector(".console").scrollHeight);
+            $('.state').removeClass('on').addClass('off');
+        }
+        return ws;
+    }
+
+    function spider() {
+        if (ws === undefined || ws.readyState !== 1) {
+            return;
+        }
+        var urlPrefix = $('#urlPrefix').val();
+        var urlSuffix = $('#urlSuffix').val();
+        var spiderStep = $('#spiderStep').val();
+        var putZero = $('#putZero').val();
+        var keywordLength = $('#keywordLength').val();
+        var sourceHeadNum = $('#sourceHeadNum').val();
+        var sourceLastNum = $('#sourceLastNum').val();
+        var exceptionTactics = $('#exceptionTactics').val();
+        var savePath = $('#savePath').val();
+        var saveNamePrefix = $('#saveNamePrefix').val();
+        var saveNameSuffix = $('#saveNameSuffix').val();
+        var fileLogPath = $('#fileLogPath').val();
+        if (urlPrefix === '' || urlSuffix === '' || spiderStep === '' || putZero === '' || keywordLength === ''
+            || sourceHeadNum === '' || sourceLastNum === '' || exceptionTactics === '' || savePath === ''
+            || saveNamePrefix === '' || saveNameSuffix === '' || fileLogPath === '') {
+            alert('请填写完整信息。');
+            return;
+        }
+        var mes = {
+            urlPrefix: urlPrefix,
+            urlSuffix: urlSuffix,
+            spiderStep: spiderStep,
+            putZero: putZero,
+            keywordLength: keywordLength,
+            sourceHeadNum: sourceHeadNum,
+            sourceLastNum: sourceLastNum,
+            exceptionTactics: exceptionTactics,
+            savePath: savePath,
+            saveNamePrefix: saveNamePrefix,
+            saveNameSuffix: saveNameSuffix,
+            fileLogPath: fileLogPath
+        }
+        if (ws === undefined || ws.readyState !== 1) {
+            return;
+        }
+        ws.send(JSON.stringify(mes));
+    }
+
+    function shutdown() {
+        alert('确认打断队列？打断后队列中已下载的文件不变，未下载的资源将不会被下载。');
+        if (ws !== undefined && ws.readyState === 1) {
+            ws.send('shutdown');
+        }
+    }
+
+    function wsConn(state) {
+        if (!"WebSocket" in window) {
+            if ("MozWebSocket" in window) {
+                WebSocket = MozWebSocket;
+            } else {
+                alert("您的浏览器版本过低，不支持WebSocket，请更新您的浏览器！");
+                return;
+            }
+        }
+        if (state === 1) {
+            if (window.location.protocol === 'https:') {
+                ws = initWs('wss://' + window.location.host + '/ws');
+            } else {
+                ws = initWs('ws://' + window.location.host + '/ws');
+            }
+        } else {
+            if (ws !== undefined) ws.close();
+        }
+    }
+
+    function clearConsole() {
+        $('.console').html('');
+    }
+</script>
+</html>
