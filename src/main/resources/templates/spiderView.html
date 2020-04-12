@@ -136,7 +136,7 @@
         <button type="button" onclick="wsConn(0)">退出同步</button>
         <button type="button" onclick="clearConsole()">清理控制台</button>
     </div>
-    <h4 class="title">反馈控制台&nbsp;<span class="state off">●</span>&nbsp;<span class="state off">未同步</span></h4>
+    <h4 class="title">反馈控制台&nbsp;<span class="state off">●</span>&nbsp;<span id="stateStr" class="state off">未同步</span></h4>
     <div class="console"></div>
 </section>
 </body>
@@ -150,6 +150,7 @@
         ws.onopen = function () {
             //连接开启
             $('.state').removeClass('off').addClass('on');
+            $('#stateStr').html('已同步');
         }
         ws.onmessage = function (data) {
             //收到服务器信息，向窗口打印
@@ -162,6 +163,7 @@
             $console.append('<p>[INFO]您已与小蜘蛛失去同步。</p>');
             $('.console').scrollTop(document.querySelector(".console").scrollHeight);
             $('.state').removeClass('on').addClass('off');
+            $('#stateStr').html('未同步');
         }
         return ws;
     }
